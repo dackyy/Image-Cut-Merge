@@ -4,7 +4,15 @@ import numpy as np
 import albumentations as A
 import argparse
 
-def HorizontalFlip(img):
+parser = argparse.ArgumentParser(description="잘린 이미지를 퍼즐처럼 맞추는 기능")
+
+parser.add_argument("input_filname_prefix", type=str, help="이미지 파일이 담긴 경로입니다.")
+parser.add_argument("column_num", type=int, help="행의 입력값 입니다.")
+parser.add_argument("row_num", type=int, help="열의 입력값 입니다.")
+parser.add_argument("output_filename", type=str, help="결과 파일의 이름 입니다.")
+args = parser.parse_args()
+
+def HorizontalFlip(img): #각각의 증강 메서드
     augmentations = A.Compose([
         A.HorizontalFlip(p=1),
     ])
@@ -28,7 +36,7 @@ def ROTATE_90_CLOCK(img):
     ])
     return augmentations(image=img)["image"]
 
-def augment(img,i):
+def augment(img,i): #이미지가 증강 되었는지 안되었는지 확인하는 경우의 수 메소드
     if i == 0:
         return img
     elif i == 1:
@@ -54,9 +62,7 @@ def augment(img,i):
     elif i == 11:
         return HorizontalFlip(ROTATE_90_CLOCK(VerticalFlip(img)))
 
-
-    
-def merge(img1, img_list, flag):
+def merge(img1, img_list, flag): # img1 에 대하여 img2를 모든 경우의 수로 증강시켜보고 score를 매기는 과정.
     lowest = [999999] #[score, img_array, file_name]
 
     for i in range(len(img_list)):
@@ -82,7 +88,7 @@ def merge(img1, img_list, flag):
             else:
                 right = 999999999
             
-            if flag == 'ver':
+            if flag == 'ver': # 2:2 비율에서 2가지 이미지가 맞춰졌을 경우 위아래 또는 왼쪽 오른쪽만 경우의 수를 찾는다. (연산량 감소)
                 score = [top, bottom]
             elif flag == 'hor':
                 score = [left, right]
@@ -109,15 +115,6 @@ def merge(img1, img_list, flag):
 
     return lowest
 
-
-parser = argparse.ArgumentParser(description="잘린 이미지를 퍼즐처럼 맞추는 기능")
-
-parser.add_argument("input_filname_prefix", type=str, help="이미지 파일이 담긴 경로입니다.")
-parser.add_argument("column_num", type=int, help="행의 입력값 입니다.")
-parser.add_argument("row_num", type=int, help="열의 입력값 입니다.")
-parser.add_argument("output_filename", type=str, help="결과 파일의 이름 입니다.")
-args = parser.parse_args()
-
 path = args.input_filname_prefix + "/" #image_file_name_prefix
 m,x = args.column_num, args.row_num
 output = args.output_filename
@@ -125,7 +122,8 @@ output = args.output_filename
 file_list = os.listdir(path)
 img_list = []
 result_list = []
-for file in file_list:
+
+for file in file_list: #폴더에 이미지 파일이 없는 경우 오류발생
     if '.DS_Store' == str(file):
         continue
     img = cv2.imread(path+file)
@@ -135,7 +133,7 @@ for file in file_list:
     img_list.append(img)
 
 flag = ""
-if m == 2 and x == 2:
+if m == 2 and x == 2: # 2:2의 비율로 잘린 이미지의 경우 두이미지만 완성하면 하나의 row가 완성된다.
     merge_img = []
     img1 = np.array(img_list.pop(0),np.uint8)
 
@@ -157,7 +155,6 @@ if m == 2 and x == 2:
             img = cv2.hconcat([img1,img2[-1]])
             img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-
         merge_img.append(img)
         if i == m-2:
             img_list.pop(img2[3])
@@ -175,10 +172,10 @@ if m == 2 and x == 2:
 
         elif result[1] == 1:
             result = cv2.hconcat([img1,result[-1]])
+        
+    cv2.imwrite(output+".png",result)
 
-#[score,[top,bottom,left,right],augment_num, img_index, img_array]
-
-elif m == 3 and x == 3:
+elif m == 3 and x == 3: # 3:3 비율 이미지의 경우 2이미지를 붙여도 row가 완성되지 않아 하나의 이미지를 더 찾아야한다.
     merge_img = []
     temp_list = []
     for j in range(x):
@@ -212,7 +209,7 @@ elif m == 3 and x == 3:
         score = [[9999999]]
         img_flag = True
         
-        for k in range(2):
+        for k in range(2):# 두이미지를 완성한 후 위쪽 이미지의 top 이미지 또는 아래쪽 이미지의 bottom이미지 중 자연스러운 이미지를 찾는다. (연산량 감소)
             result = None
             if k == 0:
                 result = merge(temp_list[k], img_list, 'top')
@@ -226,11 +223,8 @@ elif m == 3 and x == 3:
                 else:
                     img_flag = False
 
-
         img_list.pop(score[0][3])
         
-        
-            
         if img_flag:
             if img2[1] == 1 or img2[1] == 2 or img2[1] == 3: 
                 result = cv2.vconcat([score[0][-1], img1, img2[-1]])
