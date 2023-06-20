@@ -33,7 +33,7 @@ def slice_img(img,m,x):
             aug_img_list.append(aug_img)
             
     os.mkdir(args.prefix_output_filename)
-    random.shuffle(aug_img_list)
+    random.shuffle(aug_img_list)    #이미지 순서를 섞음
     for n in aug_img_list:
         cv2.imwrite(str(args.prefix_output_filename)+"/"+str(uuid.uuid4())+".png",n)
         print(n.shape)
